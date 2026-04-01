@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "start": "node server/index.js",
-    "build": "cd client && npm install && npm run build",
+    "build": "react-scripts build",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   }
 }
