@@ -68,13 +68,21 @@ export default function App() {
 }
 
 const s = {
-  authScreen: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#e2a89b' },
-  card: { background: 'white', padding: '40px', borderRadius: '20px', textAlign: 'center', width: '300px' },
-  input: { width: '100%', padding: '10px', margin: '10px 0', borderRadius: '8px', border: '1px solid #ddd' },
-  btn: { width: '100%', padding: '12px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
-  toggle: { marginTop: '15px', fontSize: '14px', color: '#6366f1', cursor: 'pointer' },
-  container: { minHeight: '100vh', backgroundColor: '#e2a89b' },
-  nav: { display: 'flex', justifyContent: 'space-between', padding: '20px', alignItems: 'center' },
-  logoutBtn: { background: 'white', border: '1px solid #4a306d', padding: '5px 15px', borderRadius: '8px', cursor: 'pointer' },
-  emptyState: { textAlign: 'center', marginTop: '50px', color: '#4a306d' }
+  nav: { 
+    padding: '40px 25px', 
+    display: 'flex',           // Enables Flexbox
+    justifyContent: 'center',  // Centers horizontally
+    alignItems: 'center',      // Centers vertically
+    width: '100%' 
+  },
+  logo: { 
+    fontFamily: "'Montserrat', sans-serif", 
+    fontSize: '38px', 
+    fontWeight: '900', 
+    letterSpacing: '8px', 
+    textTransform: 'uppercase', 
+    color: '#4a306d',
+    textAlign: 'center',       // Ensures text inside is centered
+    margin: '0 auto'           // Double-check for centering
+  },
 };
