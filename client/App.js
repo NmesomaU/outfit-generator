@@ -1,7 +1,70 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Plus, Trash2, LayoutGrid, Check, RefreshCcw, X } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { Sparkles, Plus, Trash2, LayoutGrid, Check, RefreshCcw, X, LogIn, UserPlus } from 'lucide-react';
 
-function App() {
+// --- AUTH COMPONENT (Login & Sign Up) ---
+function Auth() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (isLogin) {
+      // For now, we simulate a check. 
+      // Later, you connect this to Firebase/Backend
+      console.log("Logging in:", email);
+      navigate('/closet');
+    } else {
+      console.log("Signing up:", email);
+      alert("Account created! Now please log in.");
+      setIsLogin(true);
+    }
+  };
+
+  return (
+    <div style={{...s.container, display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+      <div style={{background: 'white', padding: '40px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', width: '350px'}}>
+        <h1 style={s.logo}>{isLogin ? "LOGIN" : "SIGN UP"}</h1>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px'}}>
+          <input 
+            type="email" 
+            placeholder="Email Address" 
+            style={s.input} 
+            onChange={(e) => setEmail(e.target.value)} 
+            required 
+          />
+          <input 
+            type="password" 
+            placeholder="Password" 
+            style={s.input} 
+            onChange={(e) => setPassword(e.target.value)}
+            required 
+          />
+          <button type="submit" style={s.shuffleBtn}>
+            {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />} 
+            {isLogin ? " ENTER CLOSET" : " CREATE ACCOUNT"}
+          </button>
+        </form>
+        
+        <p style={{marginTop: '20px', fontSize: '14px', color: '#4a306d'}}>
+          {isLogin ? "Don't have an account?" : "Already have an account?"}
+          <span 
+            onClick={() => setIsLogin(!isLogin)} 
+            style={{color: '#6366f1', cursor: 'pointer', fontWeight: 'bold', marginLeft: '5px'}}
+          >
+            {isLogin ? "Sign Up" : "Login"}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// --- MAIN CLOSET COMPONENT ---
+function Closet() {
   const [outfit, setOutfit] = useState({ 
     coat: null, top: null, bottom: null, shoes: null, bag: null, accessory: null 
   });
@@ -10,13 +73,16 @@ function App() {
   const [file, setFile] = useState(null);
   const [category, setCategory] = useState("top");
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   const categories = ['coat', 'top', 'bottom', 'shoes', 'bag', 'accessory'];
 
   const fetchInventory = async () => {
-    const res = await fetch('http://localhost:5000/all-items');
-    const data = await res.json();
-    setInventory(data);
+    try {
+        const res = await fetch('http://localhost:5000/all-items');
+        const data = await res.json();
+        setInventory(data);
+    } catch(e) { console.log("Backend not connected yet"); }
   };
 
   useEffect(() => { fetchInventory(); }, []);
@@ -37,7 +103,7 @@ function App() {
       fetchInventory();
       setImgUrl(""); setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (err) { alert("Server error!"); }
+    } catch (err) { alert("Connect your server to add items!"); }
   };
 
   const deleteItem = async (id, type) => {
@@ -62,7 +128,10 @@ function App() {
   return (
     <div style={s.container}>
       <nav style={s.nav}>
-        <h1 style={s.logo}>MY<span style={{color: '#6366f1'}}>CLOSET</span></h1>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1000px', margin: '0 auto'}}>
+            <h1 style={s.logo}>MY<span style={{color: '#6366f1'}}>CLOSET</span></h1>
+            <button onClick={() => navigate('/')} style={{background: 'none', border: '1px solid #4a306d', padding: '5px 15px', borderRadius: '8px', cursor: 'pointer'}}>Logout</button>
+        </div>
       </nav>
 
       <div style={s.uploadBox}>
@@ -83,11 +152,9 @@ function App() {
           {categories.map((type) => (
             <div key={type} style={s.card}>
               <div style={s.label}>{type.toUpperCase()}</div>
-              {/* Individual Shuffle Button */}
-              <button onClick={() => shuffleCategory(type)} style={s.miniShuffle} title="Shuffle this item">
+              <button onClick={() => shuffleCategory(type)} style={s.miniShuffle}>
                 <RefreshCcw size={14} />
               </button>
-              
               {outfit[type] ? (
                 <>
                   <img src={outfit[type].image} style={s.img} alt={type} />
@@ -129,35 +196,46 @@ function App() {
   );
 }
 
+// --- ROUTER ---
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Auth />} />
+        <Route path="/closet" element={<Closet />} />
+      </Routes>
+    </Router>
+  );
+}
+
+// --- STYLES ---
 const s = {
-  container: { minHeight: '100vh', fontFamily: "'Quicksand', sans-serif", paddingBottom: '80px', backgroundColor: '#e2a89b', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'%3E%3Cpath d='M30 40 L70 40 L50 20 Z' /%3E%3Cpath d='M50 20 C 50 10, 60 10, 60 20' /%3E%3C/g%3E%3C/svg%3E")`, backgroundSize: '100px 100px', backgroundAttachment: 'fixed' },
-  nav: { padding: '40px 25px', textAlign: 'center' },
-  logo: { fontFamily: "'Montserrat', sans-serif", fontSize: '38px', fontWeight: '900', letterSpacing: '8px', textTransform: 'uppercase', color: '#4a306d' },
-  uploadBox: { display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '40px', flexWrap: 'wrap', alignItems: 'center' },
-  customUploadBtn: { background: '#fff', color: '#d946ef', padding: '10px 20px', borderRadius: '12px', border: '2px dashed #f5d0fe', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' },
-  or: { fontWeight: 'bold', color: '#4a306d' },
-  input: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd' },
-  select: { padding: '10px', borderRadius: '8px', border: '1px solid #ddd', background: 'white' },
-  addBtn: { background: '#6366f1', color: '#fff', border: 'none', padding: '10px 25px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },
+  container: { minHeight: '100vh', fontFamily: "'Quicksand', sans-serif", paddingBottom: '80px', backgroundColor: '#e2a89b' },
+  nav: { padding: '40px 25px' },
+  logo: { fontFamily: "'Montserrat', sans-serif", fontSize: '28px', fontWeight: '900', letterSpacing: '4px', color: '#4a306d' },
+  uploadBox: { display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '40px', flexWrap: 'wrap' },
+  customUploadBtn: { background: '#fff', padding: '10px 20px', borderRadius: '12px', border: '2px dashed #ddd', cursor: 'pointer' },
+  or: { alignSelf: 'center', fontWeight: 'bold' },
+  input: { padding: '12px', borderRadius: '12px', border: '1px solid #ddd', outline: 'none' },
+  select: { padding: '10px', borderRadius: '12px', border: '1px solid #ddd' },
+  addBtn: { background: '#6366f1', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer' },
   main: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' },
-  card: { width: '250px', height: '300px', background: 'rgba(255,255,255,0.95)', borderRadius: '20px', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 8px 20px rgba(0,0,0,0.1)' },
-  label: { position: 'absolute', top: '12px', left: '12px', fontSize: '10px', fontWeight: '900', background: '#f5e6ff', color: '#6366f1', padding: '4px 10px', borderRadius: '10px' },
-  miniShuffle: { position: 'absolute', top: '12px', right: '12px', background: 'white', border: '1px solid #eee', borderRadius: '50%', padding: '5px', cursor: 'pointer', color: '#6366f1' },
-  img: { width: '85%', height: '85%', objectFit: 'contain' },
-  empty: { color: '#bbb', fontStyle: 'italic' },
-  shuffleBtn: { marginTop: '40px', background: '#d946ef', color: '#fff', padding: '15px 35px', borderRadius: '50px', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 10px 20px rgba(217,70,239,0.3)', display: 'flex', alignItems: 'center', gap: '10px' },
-  deleteBtn: { position: 'absolute', bottom: '12px', right: '12px', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer' },
-  divider: { width: '80%', margin: '60px 0', border: '0', borderTop: '2px dashed rgba(74, 48, 109, 0.2)' },
-  gallerySection: { width: '90%', maxWidth: '1000px', paddingBottom: '100px' },
-  subTitle: { display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', color: '#4a306d', marginBottom: '40px' },
-  categoryGroup: { marginBottom: '40px' },
-  categoryHeader: { fontSize: '14px', letterSpacing: '3px', color: '#4a306d', borderBottom: '2px solid rgba(74, 48, 109, 0.1)', paddingBottom: '10px', marginBottom: '20px' },
-  galleryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '20px' },
-  galleryCard: { background: 'white', padding: '10px', borderRadius: '15px', position: 'relative', cursor: 'pointer' },
-  galleryImg: { width: '100%', height: '110px', objectFit: 'contain' },
-  activeCheck: { position: 'absolute', top: '-8px', left: '-8px', background: '#6366f1', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  miniDelete: { position: 'absolute', top: '5px', right: '5px', background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '50%', cursor: 'pointer', padding: '4px' }
+  card: { width: '220px', height: '280px', background: '#fff', borderRadius: '20px', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  label: { position: 'absolute', top: '10px', left: '10px', fontSize: '10px', background: '#eee', padding: '2px 8px', borderRadius: '5px' },
+  miniShuffle: { position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer' },
+  img: { width: '80%', height: '80%', objectFit: 'contain' },
+  empty: { color: '#ccc' },
+  shuffleBtn: { background: '#d946ef', color: '#fff', padding: '15px 30px', borderRadius: '50px', border: 'none', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
+  deleteBtn: { position: 'absolute', bottom: '10px', right: '10px', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', padding: '5px' },
+  divider: { width: '80%', margin: '40px 0', opacity: 0.2 },
+  gallerySection: { width: '90%' },
+  subTitle: { textAlign: 'center', color: '#4a306d', marginBottom: '30px', display: 'flex', justifyContent: 'center', gap: '10px' },
+  categoryGroup: { marginBottom: '30px' },
+  categoryHeader: { fontSize: '12px', color: '#4a306d', borderBottom: '1px solid #ccc', paddingBottom: '5px' },
+  galleryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px', marginTop: '15px' },
+  galleryCard: { background: '#fff', padding: '10px', borderRadius: '12px', cursor: 'pointer', position: 'relative' },
+  galleryImg: { width: '100%', height: '100px', objectFit: 'contain' },
+  activeCheck: { position: 'absolute', top: '-5px', left: '-5px', background: '#6366f1', borderRadius: '50%', padding: '2px' },
+  miniDelete: { position: 'absolute', top: '5px', right: '5px', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', padding: '2px' }
 };
-
-export default App;
