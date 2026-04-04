@@ -1,4 +1,20 @@
 const express = require('express');
+const app = express();
+app.use(express.json());
+
+app.post('/api/login', (req, res) => {
+  const { email, password } = req.body;
+  // Simple check (Real apps use a database and bcrypt for security)
+  if (email === "test@test.com" && password === "password123") {
+    res.status(200).send({ message: "Success" });
+  } else {
+    res.status(401).send({ message: "Failed" });
+  }
+});
+
+app.listen(5000, () => console.log("Server running on port 5000"));
+
+const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
