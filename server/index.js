@@ -1,97 +1,50 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
+
 const app = express();
 app.use(express.json());
+app.use(cors());
 
-app.post('/api/login', (req, res) => {
+// 1. Connect to MongoDB (Replace with your actual Connection String)
+mongoose.connect('mongodb://localhost:27017/mycloset');
+
+// 2. User Schema
+const UserSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true }
+});
+const User = mongoose.model('User', UserSchema);
+
+// 3. REGISTER ROUTE
+app.post('/register', async (req, res) => {
   const { email, password } = req.body;
-  // Simple check (Real apps use a database and bcrypt for security)
-  if (email === "test@test.com" && password === "password123") {
-    res.status(200).send({ message: "Success" });
-  } else {
-    res.status(401).send({ message: "Failed" });
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const newUser = new User({ email, password: hashedPassword });
+    await newUser.save();
+    res.status(201).json({ message: "User created" });
+  } catch (err) {
+    res.status(400).json({ message: "User already exists" });
   }
 });
 
-app.listen(5000, () => console.log("Server running on port 5000"));
+// 4. LOGIN ROUTE (The "Security Guard")
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) return res.status(400).json({ message: "User not found" });
 
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+  // Compare typed password with hashed password in DB
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) return res.status(400).json({ message: "Invalid password" });
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-
-app.use('/uploads', express.static(uploadDir));
-
-mongoose.connect('mongodb://127.0.0.1:27017/wardrobe')
-  .then(() => console.log("✅ Connected to MongoDB"))
-  .catch(err => console.error("❌ MongoDB Error", err));
-
-const Cloth = mongoose.model('Cloth', { 
-    image: String, 
-    category: String 
+  // Create a Token (Digital VIP Pass)
+  const token = jwt.sign({ id: user._id }, 'YOUR_SECRET_KEY', { expiresIn: '1h' });
+  res.json({ token, user: { id: user._id, email: user.email } });
 });
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
-
-// ROUTES
-app.post('/add-item', upload.single('image'), async (req, res) => {
-    try {
-        let imageUrl = req.body.image; 
-        if (req.file) imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
-        const newItem = new Cloth({ image: imageUrl, category: req.body.category.toLowerCase() });
-        await newItem.save();
-        res.json(newItem);
-    } catch (err) { res.status(500).json({ error: "Save failed" }); }
-});
-
-app.get('/shuffle', async (req, res) => {
-    const categories = ['coat', 'top', 'bottom', 'shoes', 'bag', 'accessory'];
-    const outfit = {};
-    try {
-        for (const cat of categories) {
-            const items = await Cloth.find({ category: cat });
-            outfit[cat] = items.length > 0 ? items[Math.floor(Math.random() * items.length)] : null;
-        }
-        res.json(outfit);
-    } catch (err) { res.status(500).json({ error: "Shuffle failed" }); }
-});
-
-app.get('/random/:category', async (req, res) => {
-    try {
-        const cat = req.params.category.toLowerCase();
-        const items = await Cloth.find({ category: cat });
-        res.json(items.length > 0 ? items[Math.floor(Math.random() * items.length)] : null);
-    } catch (err) { res.status(500).json({ error: "Randomize failed" }); }
-});
-
-app.get('/all-items', async (req, res) => {
-    try { res.json(await Cloth.find({})); } 
-    catch (err) { res.status(500).json({ error: "Fetch failed" }); }
-});
-
-app.delete('/delete-item/:id', async (req, res) => {
-    try {
-        const item = await Cloth.findById(req.params.id);
-        if (item && item.image.includes('localhost')) {
-            const filename = item.image.split('/').pop();
-            const filePath = path.join(__dirname, 'uploads', filename);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        }
-        await Cloth.findByIdAndDelete(req.params.id);
-        res.json({ message: "Deleted" });
-    } catch (err) { res.status(500).json({ error: "Delete failed" }); }
-});
-
-app.listen(5000, () => console.log(`🚀 Server on http://localhost:5000`));
+app.listen(5000, () => console.log('Server running on port 5000'));
