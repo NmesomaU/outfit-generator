@@ -135,7 +135,7 @@ export default function App() {
 const s = {
   authPage: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#e2a89b' },
   authCard: { background: 'white', padding: '40px', borderRadius: '24px', textAlign: 'center', width: '320px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' },
-  logo: { fontSize: '24px', fontWeight: '900', color: '#4a306d', marginBottom: '15px' },
+  logo: { fontSize: '50px', fontWeight: '900', color: '#4a306d', marginBottom: '15px' },
   errorText: { color: 'white', background: '#ff4d4d', padding: '8px', borderRadius: '8px', fontSize: '12px', marginBottom: '15px' },
   form: { display: 'flex', flexDirection: 'column', gap: '15px' },
   input: { padding: '12px', borderRadius: '10px', border: '1px solid #ddd', outline: 'none' },
