@@ -1,122 +1,81 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-// 1. DATABASE CONNECTION
-// Replace with your MongoDB Atlas string if not using local
-mongoose.connect('mongodb://localhost:27017/mycloset')
-  .then(() => console.log("Connected to MongoDB"))
-  .catch(err => console.log("DB Connection Error:", err));
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// 2. USER MODEL
-const UserSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  isVerified: { type: Boolean, default: false },
-  verificationCode: { type: String }
-});
-const User = mongoose.model('User', UserSchema);
+app.use('/uploads', express.static(uploadDir));
 
-// 3. EMAIL CONFIGURATION (Nodemailer)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'YOUR_GMAIL@gmail.com', 
-    pass: 'YOUR_APP_PASSWORD' // NOT your login password. Generate an "App Password" in Google settings.
-  }
+mongoose.connect('mongodb://127.0.0.1:27017/wardrobe')
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch(err => console.error("❌ MongoDB Error", err));
+
+const Cloth = mongoose.model('Cloth', { 
+    image: String, 
+    category: String 
 });
 
-// 4. REGISTER ROUTE (Sign Up)
-app.post('/register', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: "User already exists" });
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'uploads/'),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage });
 
-    // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Generate a 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-    const newUser = new User({
-      email,
-      password: hashedPassword,
-      verificationCode: code,
-      isVerified: false
-    });
-
-    await newUser.save();
-
-    // Send the email
-    const mailOptions = {
-      from: 'YOUR_GMAIL@gmail.com',
-      to: email,
-      subject: 'Your Closet Verification Code',
-      text: `Your verification code is: ${code}`
-    };
-
-    await transporter.sendMail(mailOptions);
-    res.status(201).json({ message: "Verification code sent to email!" });
-
-  } catch (err) {
-    res.status(500).json({ message: "Error creating user" });
-  }
+// ROUTES
+app.post('/add-item', upload.single('image'), async (req, res) => {
+    try {
+        let imageUrl = req.body.image; 
+        if (req.file) imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+        const newItem = new Cloth({ image: imageUrl, category: req.body.category.toLowerCase() });
+        await newItem.save();
+        res.json(newItem);
+    } catch (err) { res.status(500).json({ error: "Save failed" }); }
 });
 
-// 5. VERIFY ROUTE
-app.post('/verify', async (req, res) => {
-  const { email, code } = req.body;
-  const user = await User.findOne({ email });
-
-  if (user && user.verificationCode === code) {
-    user.isVerified = true;
-    user.verificationCode = null; // Clear code after use
-    await user.save();
-    res.status(200).json({ message: "Account verified! You can now login." });
-  } else {
-    res.status(400).json({ message: "Invalid verification code." });
-  }
+app.get('/shuffle', async (req, res) => {
+    const categories = ['coat', 'top', 'bottom', 'shoes', 'bag', 'accessory'];
+    const outfit = {};
+    try {
+        for (const cat of categories) {
+            const items = await Cloth.find({ category: cat });
+            outfit[cat] = items.length > 0 ? items[Math.floor(Math.random() * items.length)] : null;
+        }
+        res.json(outfit);
+    } catch (err) { res.status(500).json({ error: "Shuffle failed" }); }
 });
 
-// 6. LOGIN ROUTE (The "Gatekeeper")
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
-    }
-
-    // CHECK 1: Is the password correct?
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      // This 401 status stops the Frontend from logging in
-      return res.status(401).json({ message: "Invalid password" });
-    }
-
-    // CHECK 2: Is the email verified?
-    if (!user.isVerified) {
-      return res.status(403).json({ message: "Please verify your email first." });
-    }
-
-    // SUCCESS
-    res.status(200).json({ 
-      user: { id: user._id, email: user.email },
-      message: "Login successful" 
-    });
-
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
+app.get('/random/:category', async (req, res) => {
+    try {
+        const cat = req.params.category.toLowerCase();
+        const items = await Cloth.find({ category: cat });
+        res.json(items.length > 0 ? items[Math.floor(Math.random() * items.length)] : null);
+    } catch (err) { res.status(500).json({ error: "Randomize failed" }); }
 });
 
-app.listen(5000, () => console.log('Server running on port 5000'));
+app.get('/all-items', async (req, res) => {
+    try { res.json(await Cloth.find({})); } 
+    catch (err) { res.status(500).json({ error: "Fetch failed" }); }
+});
+
+app.delete('/delete-item/:id', async (req, res) => {
+    try {
+        const item = await Cloth.findById(req.params.id);
+        if (item && item.image.includes('localhost')) {
+            const filename = item.image.split('/').pop();
+            const filePath = path.join(__dirname, 'uploads', filename);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }
+        await Cloth.findByIdAndDelete(req.params.id);
+        res.json({ message: "Deleted" });
+    } catch (err) { res.status(500).json({ error: "Delete failed" }); }
+});
+
+app.listen(5000, () => console.log(`🚀 Server on http://localhost:5000`));
