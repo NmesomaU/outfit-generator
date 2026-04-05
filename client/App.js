@@ -1,40 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogIn, UserPlus, LogOut, Sparkles } from 'lucide-react';
-const handleAuth = async (e) => {
-  e.preventDefault();
-  setError('');
-  const path = isLogin ? '/login' : '/register';
 
-  try {
-    const res = await fetch(`http://localhost:5000${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await res.json();
-
-    // --- THIS IS THE CRITICAL LOGIC ---
-    if (res.ok) {
-      // SUCCESS: The password matched in the database
-      if (isLogin) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-        setUser(data.user); // This moves the user into the closet
-      } else {
-        alert("Account created! Now please login.");
-        setIsLogin(true);
-      }
-    } else {
-      // FAILURE: The server sent an error (e.g., "Invalid password")
-      setError(data.message || "Login failed"); 
-      // Because we DON'T call setUser(data.user) here, the screen stays on Login.
-    }
-    // ----------------------------------
-
-  } catch (err) {
-    setError("Server error. Is your backend running?");
-  }
-};
 export default function App() {
   const [user, setUser] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
@@ -42,15 +8,16 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Auto-login if token exists
+  // 1. Auto-login if user data exists in browser memory
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) setUser(JSON.parse(savedUser));
   }, []);
 
+  // 2. The SINGLE, corrected Auth Function
   const handleAuth = async (e) => {
     e.preventDefault();
-    setError('');
+    setError(''); // Clear old errors
     const path = isLogin ? '/login' : '/register';
 
     try {
@@ -59,9 +26,11 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
+
       const data = await res.json();
 
       if (res.ok) {
+        // --- ONLY RUNS IF PASSWORD IS CORRECT ---
         if (isLogin) {
           localStorage.setItem('user', JSON.stringify(data.user));
           setUser(data.user);
@@ -70,19 +39,22 @@ export default function App() {
           setIsLogin(true);
         }
       } else {
-        setError(data.message);
+        // --- RUNS IF PASSWORD IS WRONG ---
+        setError(data.message || "Invalid credentials!");
+        alert("ACCESS DENIED: " + (data.message || "Wrong password"));
       }
     } catch (err) {
-      setError("Server is down. Start your node server!");
+      setError("Server is down. Is your Node server running?");
     }
   };
 
+  // 3. Login Screen
   if (!user) {
     return (
       <div style={s.authPage}>
         <div style={s.authCard}>
           <h1 style={s.logo}>{isLogin ? 'WELCOME BACK' : 'CREATE ACCOUNT'}</h1>
-          {error && <p style={{color: 'red', fontSize: '12px'}}>{error}</p>}
+          {error && <p style={{color: 'red', fontSize: '14px', marginBottom: '10px'}}>{error}</p>}
           <form onSubmit={handleAuth} style={s.form}>
             <input type="email" placeholder="Email" style={s.input} onChange={e => setEmail(e.target.value)} required />
             <input type="password" placeholder="Password" style={s.input} onChange={e => setPassword(e.target.value)} required />
@@ -91,7 +63,7 @@ export default function App() {
               {isLogin ? ' LOGIN' : ' SIGN UP'}
             </button>
           </form>
-          <p onClick={() => setIsLogin(!isLogin)} style={s.toggle}>
+          <p onClick={() => { setIsLogin(!isLogin); setError(''); }} style={s.toggle}>
             {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
           </p>
         </div>
@@ -99,6 +71,7 @@ export default function App() {
     );
   }
 
+  // 4. Closet Screen
   return (
     <div style={s.container}>
       <nav style={s.nav}>
@@ -110,7 +83,6 @@ export default function App() {
       <main style={s.main}>
         <div style={s.welcome}>Hello, {user.email}</div>
         <button style={s.shuffleBtn}><Sparkles size={18}/> SHUFFLE OUTFIT</button>
-        {/* Put your Closet Grid code here */}
       </main>
     </div>
   );
