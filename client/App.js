@@ -1,6 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { LogIn, UserPlus, LogOut, Sparkles } from 'lucide-react';
+const handleAuth = async (e) => {
+  e.preventDefault();
+  setError('');
+  const path = isLogin ? '/login' : '/register';
 
+  try {
+    const res = await fetch(`http://localhost:5000${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    // --- THIS IS THE CRITICAL LOGIC ---
+    if (res.ok) {
+      // SUCCESS: The password matched in the database
+      if (isLogin) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setUser(data.user); // This moves the user into the closet
+      } else {
+        alert("Account created! Now please login.");
+        setIsLogin(true);
+      }
+    } else {
+      // FAILURE: The server sent an error (e.g., "Invalid password")
+      setError(data.message || "Login failed"); 
+      // Because we DON'T call setUser(data.user) here, the screen stays on Login.
+    }
+    // ----------------------------------
+
+  } catch (err) {
+    setError("Server error. Is your backend running?");
+  }
+};
 export default function App() {
   const [user, setUser] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
