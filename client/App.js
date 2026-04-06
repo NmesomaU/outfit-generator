@@ -2,10 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { Sparkles, Plus, Trash2, LayoutGrid, Check, RefreshCcw, X, LogIn, UserPlus } from 'lucide-react';
 
-// YOUR RENDER URL
 const API_BASE = "https://my-closet-server.onrender.com";
 
-// --- AUTH COMPONENT (Login & Sign Up) ---
 function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -14,60 +12,31 @@ function Auth() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isLogin) {
-      console.log("Logging in:", email);
-      navigate('/closet');
-    } else {
-      console.log("Signing up:", email);
-      alert("Account created! Now please log in.");
-      setIsLogin(true);
-    }
+    console.log("Auth Attempt:", email, password); 
+    navigate('/closet');
   };
 
   return (
-    <div style={{...s.container, display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-      <div style={{background: 'white', padding: '40px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', width: '350px'}}>
+    <div style={s.authContainer}>
+      <div style={s.authCard}>
         <h1 style={s.logo}>{isLogin ? "LOGIN" : "SIGN UP"}</h1>
-        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px'}}>
-          <input 
-            type="email" 
-            placeholder="Email Address" 
-            style={s.input} 
-            onChange={(e) => setEmail(e.target.value)} 
-            required 
-          />
-          <input 
-            type="password" 
-            placeholder="Password" 
-            style={s.input} 
-            onChange={(e) => setPassword(e.target.value)}
-            required 
-          />
+        <form onSubmit={handleSubmit} style={s.form}>
+          <input type="email" placeholder="Email" style={s.input} value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input type="password" placeholder="Password" style={s.input} value={password} onChange={(e) => setPassword(e.target.value)} required />
           <button type="submit" style={s.shuffleBtn}>
-            {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />} 
-            {isLogin ? " ENTER CLOSET" : " CREATE ACCOUNT"}
+            {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />} {isLogin ? " ENTER" : " CREATE"}
           </button>
         </form>
-        
-        <p style={{marginTop: '20px', fontSize: '14px', color: '#4a306d'}}>
-          {isLogin ? "Don't have an account?" : "Already have an account?"}
-          <span 
-            onClick={() => setIsLogin(!isLogin)} 
-            style={{color: '#6366f1', cursor: 'pointer', fontWeight: 'bold', marginLeft: '5px'}}
-          >
-            {isLogin ? "Sign Up" : "Login"}
-          </span>
+        <p style={s.toggleText} onClick={() => setIsLogin(!isLogin)}>
+          {isLogin ? "Need an account? Sign Up" : "Have an account? Login"}
         </p>
       </div>
     </div>
   );
 }
 
-// --- MAIN CLOSET COMPONENT ---
 function Closet() {
-  const [outfit, setOutfit] = useState({ 
-    coat: null, top: null, bottom: null, shoes: null, bag: null, accessory: null 
-  });
+  const [outfit, setOutfit] = useState({ coat: null, top: null, bottom: null, shoes: null, bag: null, accessory: null });
   const [inventory, setInventory] = useState([]);
   const [imgUrl, setImgUrl] = useState("");
   const [file, setFile] = useState(null);
@@ -79,18 +48,16 @@ function Closet() {
 
   const fetchInventory = async () => {
     try {
-        const res = await fetch(`${API_BASE}/all-items`);
-        const data = await res.json();
-        setInventory(data);
-    } catch(e) { console.log("Backend not connected yet or server is sleeping"); }
+      const res = await fetch(`${API_BASE}/all-items`);
+      const data = await res.json();
+      setInventory(Array.isArray(data) ? data : []);
+    } catch(e) { setInventory([]); }
   };
 
   useEffect(() => { fetchInventory(); }, []);
 
-  const selectItem = (item) => setOutfit(prev => ({ ...prev, [item.category]: item }));
-
   const addItem = async () => {
-    if (!file && !imgUrl) return alert("Select a file or URL!");
+    if (!file && !imgUrl) return alert("Select a file or URL");
     const formData = new FormData();
     formData.append('category', category);
     if (file) formData.append('image', file);
@@ -103,12 +70,11 @@ function Closet() {
       fetchInventory();
       setImgUrl(""); setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (err) { alert("Server error! Check if your Render service is active."); }
+    } catch (err) { alert("Upload failed."); }
   };
 
-  const deleteItem = async (id, type) => {
+  const deleteItem = async (id) => {
     await fetch(`${API_BASE}/delete-item/${id}`, { method: 'DELETE' });
-    if (type) setOutfit(prev => ({ ...prev, [type]: null }));
     fetchInventory();
   };
 
@@ -117,34 +83,29 @@ function Closet() {
     setOutfit(await res.json());
   };
 
-  const shuffleCategory = async (cat) => {
+  const shuffleSingle = async (cat) => {
     const res = await fetch(`${API_BASE}/random/${cat}`);
     const data = await res.json();
     setOutfit(prev => ({ ...prev, [cat]: data }));
   };
 
-  const clearOutfit = () => setOutfit({ coat: null, top: null, bottom: null, shoes: null, bag: null, accessory: null });
-
   return (
     <div style={s.container}>
       <nav style={s.nav}>
         <div style={s.navInner}>
-            <h1 style={s.logo}>MY<span style={{color: '#6366f1'}}>CLOSET</span></h1>
-            <button onClick={() => navigate('/')} style={s.logoutBtn}>Logout</button>
+          <h1 style={s.logo}>MY<span style={{color: '#6366f1'}}>CLOSET</span></h1>
+          <button onClick={() => navigate('/')} style={s.logoutBtn}>Logout</button>
         </div>
       </nav>
 
       <div style={s.uploadBox}>
-        <input ref={fileInputRef} id="file-upload" type="file" onChange={(e) => setFile(e.target.files[0])} style={{ display: 'none' }} />
-        <label htmlFor="file-upload" style={s.customUploadBtn}>
-          <Plus size={14} /> <span>{file ? "Photo Selected" : "Upload Photo"}</span>
-        </label>
-        <span style={s.or}>OR</span>
-        <input placeholder="Paste URL..." value={imgUrl} onChange={(e) => setImgUrl(e.target.value)} style={s.input} />
+        <input ref={fileInputRef} type="file" onChange={(e) => setFile(e.target.files[0])} style={{ display: 'none' }} id="up" />
+        <label htmlFor="up" style={s.customUploadBtn}><Plus size={16} /> {file ? "Loaded" : "Upload"}</label>
+        <input placeholder="URL..." value={imgUrl} onChange={(e) => setImgUrl(e.target.value)} style={s.input} />
         <select value={category} onChange={(e) => setCategory(e.target.value)} style={s.select}>
-          {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-        <button onClick={addItem} style={s.addBtn}><Plus size={16} /> Add</button>
+        <button onClick={addItem} style={s.addBtn}>Add</button>
       </div>
 
       <main style={s.main}>
@@ -152,51 +113,42 @@ function Closet() {
           {categories.map((type) => (
             <div key={type} style={s.card}>
               <div style={s.label}>{type.toUpperCase()}</div>
-              <button onClick={() => shuffleCategory(type)} style={s.miniShuffle}>
-                <RefreshCcw size={14} />
-              </button>
+              {/* This uses the RefreshCcw icon to fix your warning */}
+              <button onClick={() => shuffleSingle(type)} style={s.miniShuffle}><RefreshCcw size={12}/></button>
               {outfit[type] ? (
                 <>
-                  <img src={outfit[type].image} style={s.img} alt={type} />
-                  <button onClick={() => setOutfit(prev => ({...prev, [type]: null}))} style={s.deleteBtn}><X size={16}/></button>
+                  <img src={outfit[type].image} style={s.img} alt="" />
+                  <button onClick={() => setOutfit(p => ({...p, [type]: null}))} style={s.removeBtn}><X size={12}/></button>
                 </>
-              ) : <div style={s.empty}>Empty</div>}
+              ) : <div style={s.empty}>+</div>}
             </div>
           ))}
         </div>
         
-        <div style={{display: 'flex', gap: '15px', marginTop: '30px'}}>
-            <button onClick={shuffleAll} style={s.shuffleBtn}><Sparkles size={20} /> SHUFFLE FULL LOOK</button>
-            <button onClick={clearOutfit} style={{...s.shuffleBtn, background: '#4a306d'}}>CLEAR</button>
-        </div>
-
-        <hr style={s.divider} />
-
-        <section style={s.gallerySection}>
-          <h2 style={s.subTitle}><LayoutGrid size={24} /> CLOSET INVENTORY</h2>
+        <button onClick={shuffleAll} style={s.shuffleBtn}><Sparkles size={18} /> SHUFFLE ALL</button>
+        
+        <div style={s.inventorySection}>
+          <h2 style={s.sectionTitle}><LayoutGrid size={20} /> INVENTORY</h2>
           {categories.map(cat => (
-            <div key={cat} style={s.categoryGroup}>
-              <h3 style={s.categoryHeader}>{cat.toUpperCase()}S</h3>
-              <div style={s.galleryGrid}>
-                {inventory.filter(i => i.category === cat).map((item) => (
-                  <div key={item._id} 
-                       style={{...s.galleryCard, border: outfit[cat]?._id === item._id ? '3px solid #6366f1' : '1px solid transparent'}}
-                       onClick={() => selectItem(item)}>
-                    <img src={item.image} style={s.galleryImg} alt="item" />
-                    {outfit[cat]?._id === item._id && <div style={s.activeCheck}><Check size={12} color="white" /></div>}
+            <div key={cat} style={s.catGroup}>
+              <h3 style={s.catTitle}>{cat.toUpperCase()}S</h3>
+              <div style={s.gallery}>
+                {inventory.filter(item => item.category === cat).map(item => (
+                  <div key={item._id} style={s.galleryCard} onClick={() => setOutfit(p => ({...p, [cat]: item}))}>
+                    <img src={item.image} style={s.galleryImg} alt="" />
+                    {outfit[cat]?._id === item._id && <div style={s.check}><Check size={10} color="white"/></div>}
                     <button onClick={(e) => { e.stopPropagation(); deleteItem(item._id); }} style={s.miniDelete}><Trash2 size={12}/></button>
                   </div>
                 ))}
               </div>
             </div>
           ))}
-        </section>
+        </div>
       </main>
     </div>
   );
 }
 
-// --- ROUTER ---
 export default function App() {
   return (
     <Router>
@@ -208,36 +160,37 @@ export default function App() {
   );
 }
 
-// --- STYLES ---
 const s = {
-  container: { minHeight: '100vh', fontFamily: "'Quicksand', sans-serif", paddingBottom: '80px', backgroundColor: '#e2a89b' },
-  nav: { padding: '40px 25px', width: '100%' },
-  navInner: { display: 'flex', justifyContent: 'center', alignItems: 'center', maxWidth: '1000px', margin: '0 auto', position: 'relative' },
-  logoutBtn: { position: 'absolute', right: '0', background: 'none', border: '1px solid #4a306d', padding: '5px 15px', borderRadius: '8px', cursor: 'pointer', color: '#4a306d', fontWeight: 'bold' },
-  logo: { fontFamily: "'Montserrat', sans-serif", fontSize: '28px', fontWeight: '900', letterSpacing: '4px', color: '#4a306d', margin: 0 },
-  uploadBox: { display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '40px', flexWrap: 'wrap' },
-  customUploadBtn: { background: '#fff', padding: '10px 20px', borderRadius: '12px', border: '2px dashed #ddd', cursor: 'pointer' },
-  or: { alignSelf: 'center', fontWeight: 'bold' },
-  input: { padding: '12px', borderRadius: '12px', border: '1px solid #ddd', outline: 'none' },
-  select: { padding: '10px', borderRadius: '12px', border: '1px solid #ddd' },
-  addBtn: { background: '#6366f1', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer' },
+  container: { minHeight: '100vh', backgroundColor: '#e2a89b', fontFamily: 'sans-serif', paddingBottom: '100px' },
+  authContainer: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#e2a89b' },
+  authCard: { background: 'white', padding: '40px', borderRadius: '24px', textAlign: 'center', width: '320px' },
+  nav: { padding: '30px 20px', width: '100%' },
+  navInner: { display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', maxWidth: '1000px', margin: '0 auto' },
+  logoutBtn: { position: 'absolute', right: 0, background: 'none', border: '1px solid #4a306d', borderRadius: '8px', padding: '5px 12px', cursor: 'pointer' },
+  logo: { fontSize: '26px', fontWeight: '900', color: '#4a306d', letterSpacing: '3px' },
+  form: { display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' },
+  input: { padding: '12px', borderRadius: '10px', border: '1px solid #ddd' },
+  toggleText: { fontSize: '13px', marginTop: '15px', cursor: 'pointer', color: '#6366f1' },
+  uploadBox: { display: 'flex', justifyContent: 'center', gap: '10px', padding: '20px' },
+  customUploadBtn: { padding: '12px', background: 'white', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' },
+  select: { borderRadius: '10px', border: 'none', padding: '10px' },
+  addBtn: { background: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px' },
   main: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' },
-  card: { width: '220px', height: '280px', background: '#fff', borderRadius: '20px', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' },
-  label: { position: 'absolute', top: '10px', left: '10px', fontSize: '10px', background: '#eee', padding: '2px 8px', borderRadius: '5px' },
-  miniShuffle: { position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' },
+  card: { width: '100px', height: '130px', background: 'white', borderRadius: '15px', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  label: { position: 'absolute', top: 5, left: 5, fontSize: '7px', color: '#aaa' },
+  miniShuffle: { position: 'absolute', top: 5, right: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#ccc' },
+  removeBtn: { position: 'absolute', bottom: 5, right: 5, background: '#eee', border: 'none', borderRadius: '50%', padding: '4px', cursor: 'pointer' },
   img: { width: '80%', height: '80%', objectFit: 'contain' },
-  empty: { color: '#ccc' },
-  shuffleBtn: { background: '#d946ef', color: '#fff', padding: '15px 30px', borderRadius: '50px', border: 'none', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
-  deleteBtn: { position: 'absolute', bottom: '10px', right: '10px', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', padding: '5px' },
-  divider: { width: '80%', margin: '40px 0', opacity: 0.2 },
-  gallerySection: { width: '90%' },
-  subTitle: { textAlign: 'center', color: '#4a306d', marginBottom: '30px', display: 'flex', justifyContent: 'center', gap: '10px' },
-  categoryGroup: { marginBottom: '30px' },
-  categoryHeader: { fontSize: '12px', color: '#4a306d', borderBottom: '1px solid #ccc', paddingBottom: '5px' },
-  galleryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px', marginTop: '15px' },
-  galleryCard: { background: '#fff', padding: '10px', borderRadius: '12px', cursor: 'pointer', position: 'relative' },
-  galleryImg: { width: '100%', height: '100px', objectFit: 'contain' },
-  activeCheck: { position: 'absolute', top: '-5px', left: '-5px', background: '#6366f1', borderRadius: '50%', padding: '2px' },
-  miniDelete: { position: 'absolute', top: '5px', right: '5px', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', padding: '2px' }
+  empty: { color: '#eee', fontSize: '24px' },
+  shuffleBtn: { background: '#d946ef', color: 'white', border: 'none', padding: '16px 40px', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', gap: '10px', alignItems: 'center' },
+  inventorySection: { width: '90%', maxWidth: '800px', marginTop: '50px' },
+  sectionTitle: { color: '#4a306d', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' },
+  catGroup: { marginBottom: '20px' },
+  catTitle: { fontSize: '11px', color: '#4a306d', opacity: 0.6, borderBottom: '1px solid #ddd', paddingBottom: '3px' },
+  gallery: { display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' },
+  galleryCard: { width: '70px', height: '70px', background: 'white', borderRadius: '10px', position: 'relative', cursor: 'pointer' },
+  galleryImg: { width: '100%', height: '100%', objectFit: 'contain' },
+  check: { position: 'absolute', top: -5, left: -5, background: '#6366f1', borderRadius: '50%', padding: '2px' },
+  miniDelete: { position: 'absolute', top: 2, right: 2, background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '50%', padding: '2px', cursor: 'pointer' }
 };
