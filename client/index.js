@@ -3,7 +3,13 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-
+<script>
+  async function getData(){
+    const response=await fetch('/api/https://outfit-generator-sx51.onrender.com/closet')
+const data = await response.json();
+  console.log(data);}
+  getData();
+  <script>
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
